@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チャットルーム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+        }
+
+        /* ログイン画面 */
+        .login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .login-dialog {
+            background-color: white;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .login-dialog h2 {
+            margin-bottom: 20px;
+            font-size: 20px;
+            color: #333;
+        }
+
+        .login-dialog input {
+            width: 300px;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .login-dialog button {
+            width: 100px;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .login-dialog button:hover {
+            background-color: #f0f0f0;
+        }
+
+        .login-screen.hidden {
+            display: none;
+        }
+
+        /* メインチャットエリア */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* ヘッダー */
+        .chat-header {
+            background-color: #f5f5f5;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .chat-title {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+
+        .chat-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .header-controls input {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            width: 100px;
+        }
+
+        .header-controls button {
+            padding: 6px 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .header-controls button:hover {
+            background-color: #f0f0f0;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #999;
+            flex-shrink: 0;
+            cursor: pointer;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .user-avatar:hover {
+            opacity: 0.8;
+        }
+
+        /* メッセージエリア */
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 20px;
+            background-color: white;
+            min-width: 0;
+        }
+
+        .message-group {
+            margin-bottom: 16px;
+        }
+
+        .message-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #8b7355;
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .message-content {
+            flex: 1;
+            min-width: 0;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .message-user {
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 4px;
+        }
+
+        .message-text {
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .message-media {
+            margin-top: 8px;
+            max-width: 400px;
+        }
+
+        .message-media img {
+            max-width: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .message-media video {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+
+        .message-link {
+            color: #0066cc;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .message-link:hover {
+            text-decoration: underline;
+        }
+
+        .block-label {
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        /* 入力エリア */
+        .input-area {
+            border-top: 1px solid #ddd;
+            padding: 15px 20px;
+            background-color: #f9f9f9;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+
+        .message-input-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            min-height: 36px;
+            max-height: 100px;
+        }
+
+        .media-preview {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .media-item {
+            position: relative;
+        }
+
+        .media-item img,
+        .media-item video {
+            height: 100px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .media-remove {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+        }
+
+        .file-controls {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .file-btn {
+            padding: 6px 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .file-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .send-btn {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* スクロールバー */
+        .messages-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .messages-area::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        .messages-area::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        /* カラーピッカー */
+        .color-picker-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .color-picker-modal.show {
+            display: flex;
+        }
+
+        .color-picker-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .color-picker-content h3 {
+            margin-bottom: 15px;
+        }
+
+        .color-options {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .color-option {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .color-option:hover {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        .color-picker-content input[type="file"] {
+            margin-bottom: 15px;
+        }
+
+        .color-picker-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .color-picker-buttons button {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: white;
+        }
+
+        .color-picker-buttons button:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* 隠しファイル入力 */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .modal-content img,
+        .modal-content video {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            background: white;
+            color: black;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-dialog">
+            <h2>ログインしてください</h2>
+            <input type="text" id="usernameInput" placeholder="名前を入力してください">
+            <br>
+            <button id="loginBtn">ログイン</button>
+        </div>
+    </div>
+
+    <!-- チャットコンテナ -->
+    <div class="chat-container">
+        <!-- ヘッダー -->
+        <div class="chat-header">
+            <div class="chat-title">
+                <h1>チャットルーム: default-room</h1>
+            </div>
+            <div class="header-controls">
+                <input type="text" id="usernameDisplay" placeholder="ゲスト" value="">
+                <button id="changeNameBtn">名前を変更</button>
+                <button id="backgroundBtn">アカウント背景を変更</button>
+                <div class="user-avatar" id="userAvatar"></div>
+            </div>
+        </div>
+
+        <!-- メッセージエリア -->
+        <div class="messages-area">
+            <!-- デフォルトではメッセージなし -->
+        </div>
+
+        <!-- 入力エリア -->
+        <div class="input-area">
+            <div class="message-input-container">
+                <textarea class="message-input" placeholder="メッセージ入力"></textarea>
+                <div class="media-preview" id="mediaPreview"></div>
+            </div>
+            <div class="file-controls">
+                <button class="file-btn" id="mediaSelectBtn">動画または画像を選択</button>
+            </div>
+            <button class="send-btn">送信</button>
+        </div>
+    </div>
+
+    <!-- 背景カラーピッカーモーダル -->
+    <div class="color-picker-modal" id="colorPickerModal">
+        <div class="color-picker-content">
+            <h3>アカウント背景を変更</h3>
+            <div class="color-options" id="colorOptions"></div>
+            <input type="file" id="backgroundImageInput" accept="image/*">
+            <button onclick="document.getElementById('backgroundImageInput').click()" style="display: block; margin-bottom: 15px;">画像をアップロード</button>
+            <div class="color-picker-buttons">
+                <button onclick="closeColorPicker()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 画像・動画拡大表示モーダル -->
+    <div class="modal" id="mediaModal">
+        <div class="modal-content" id="modalContent">
+            <button class="modal-close" onclick="closeMediaModal()">✕</button>
+        </div>
+    </div>
+
+    <!-- 隠しファイル入力 -->
+    <input type="file" id="mediaFileInput" accept="image/*,video/*" multiple>
+    <input type="file" id="backgroundAvatarInput" accept="image/*">
+
+    <script>
+        let currentUsername = '';
+        let userAvatarColor = '#999';
+        let userAvatarImage = null;
+        let selectedMediaFiles = [];
+        const colors = ['#999', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+
+        // 初期化：カラーオプションを生成
+        function initColorOptions() {
+            const colorOptionsContainer = document.getElementById('colorOptions');
+            colors.forEach(color => {
+                const colorDiv = document.createElement('div');
+                colorDiv.className = 'color-option';
+                colorDiv.style.backgroundColor = color;
+                colorDiv.onclick = () => setAvatarColor(color);
+                colorOptionsContainer.appendChild(colorDiv);
+            });
+        }
+
+        initColorOptions();
+
+        // ログイン処理
+        document.getElementById('loginBtn').addEventListener('click', function() {
+            const username = document.getElementById('usernameInput').value.trim();
+            
+            if (username) {
+                currentUsername = username;
+                document.getElementById('usernameDisplay').value = username;
+                document.querySelector('.message-input').placeholder = username + 'としてメッセージ入力';
+                document.getElementById('loginScreen').classList.add('hidden');
+            } else {
+                alert('名前を入力してください');
+            }
+        });
+
+        // Enterキーでもログイン可能に
+        document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('loginBtn').click();
+            }
+        });
+
+        // 名前を変更ボタン
+        document.getElementById('changeNameBtn').addEventListener('click', function() {
+            const newName = prompt('新しい名前を入力してください:', currentUsername);
+            if (newName && newName.trim()) {
+                currentUsername = newName.trim();
+                document.getElementById('usernameDisplay').value = currentUsername;
+                document.querySelector('.message-input').placeholder = currentUsername + 'としてメッセージ入力';
+            }
+        });
+
+        // アカウント背景を変更ボタン
+        document.getElementById('backgroundBtn').addEventListener('click', function() {
+            document.getElementById('colorPickerModal').classList.add('show');
+        });
+
+        // カラーピッカーを閉じる
+        function closeColorPicker() {
+            document.getElementById('colorPickerModal').classList.remove('show');
+        }
+
+        // アバターの色を設定
+        function setAvatarColor(color) {
+            userAvatarColor = color;
+            userAvatarImage = null;
+            document.getElementById('userAvatar').style.backgroundColor = color;
+            document.getElementById('userAvatar').style.backgroundImage = 'none';
+            closeColorPicker();
+        }
+
+        // 背景画像をアップロード
+        document.getElementById('backgroundImageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    userAvatarImage = event.target.result;
+                    document.getElementById('userAvatar').style.backgroundImage = `url('${userAvatarImage}')`;
+                    document.getElementById('userAvatar').style.backgroundColor = 'transparent';
+                    closeColorPicker();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // メディア選択ボタン
+        document.getElementById('mediaSelectBtn').addEventListener('click', function() {
+            document.getElementById('mediaFileInput').click();
+        });
+
+        // メディアファイルが選択された時
+        document.getElementById('mediaFileInput').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    selectedMediaFiles.push({
+                        file: file,
+                        data: event.target.result,
+                        type: file.type
+                    });
+                    updateMediaPreview();
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        // メディアプレビューを更新
+        function updateMediaPreview() {
+            const preview = document.getElementById('mediaPreview');
+            preview.innerHTML = '';
+            selectedMediaFiles.forEach((media, index) => {
+                const container = document.createElement('div');
+                container.className = 'media-item';
+                
+                let element;
+                if (media.type.startsWith('image')) {
+                    element = document.createElement('img');
+                    element.src = media.data;
+                } else {
+                    element = document.createElement('video');
+                    element.src = media.data;
+                    element.controls = false;
+                }
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'media-remove';
+                removeBtn.textContent = '✕';
+                removeBtn.onclick = () => {
+                    selectedMediaFiles.splice(index, 1);
+                    updateMediaPreview();
+                };
+                
+                container.appendChild(element);
+                container.appendChild(removeBtn);
+                preview.appendChild(container);
+            });
+        }
+
+        // メッセージ送信機能
+        document.querySelector('.send-btn').addEventListener('click', function() {
+            const input = document.querySelector('.message-input');
+            const message = input.value.trim();
+            
+            if (message || selectedMediaFiles.length > 0) {
+                input.value = '';
+                
+                const messagesArea = document.querySelector('.messages-area');
+                const newMessage = document.createElement('div');
+                newMessage.className = 'message-group';
+                
+                let avatarStyle = '';
+                if (userAvatarImage) {
+                    avatarStyle = `style="background-image: url('${userAvatarImage}'); background-color: transparent;"`;
+                } else {
+                    avatarStyle = `style="background-color: ${userAvatarColor}"`;
+                }
+                
+                let mediaHTML = '';
+                if (selectedMediaFiles.length > 0) {
+                    mediaHTML = '<div class="message-media">';
+                    selectedMediaFiles.forEach(media => {
+                        if (media.type.startsWith('image')) {
+                            mediaHTML += `<img src="${media.data}" onclick="openMediaModal(this)" style="cursor: pointer; margin-right: 5px;">`;
+                        } else {
+                            mediaHTML += `<video src="${media.data}" controls style="margin-right: 5px;"></video>`;
+                        }
+                    });
+                    mediaHTML += '</div>';
+                }
+                
+                newMessage.innerHTML = `
+                    <div class="message-item">
+                        <div class="message-avatar" ${avatarStyle}></div>
+                        <div class="message-content">
+                            <div class="message-user">${currentUsername}</div>
+                            <div class="message-text">${message}</div>
+                            ${mediaHTML}
+                        </div>
+                    </div>
+                `;
+                messagesArea.appendChild(newMessage);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+                
+                // メディアをクリア
+                selectedMediaFiles = [];
+                updateMediaPreview();
+                document.getElementById('mediaFileInput').value = '';
+            }
+        });
+
+        // Enterキーでも送信可能に
+        document.querySelector('.message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.querySelector('.send-btn').click();
+            }
+        });
+
+        // メディアモーダルを開く
+        function openMediaModal(element) {
+            const modal = document.getElementById('mediaModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            const clone = element.cloneNode();
+            clone.style.maxWidth = '90%';
+            clone.style.maxHeight = '90%';
+            
+            modalContent.innerHTML = '<button class="modal-close" onclick="closeMediaModal()">✕</button>';
+            modalContent.appendChild(clone);
+            
+            modal.classList.add('show');
+        }
+
+        // メディアモーダルを閉じる
+        function closeMediaModal() {
+            document.getElementById('mediaModal').classList.remove('show');
+        }
+
+        // ユーザーアバター初期化
+        document.getElementById('userAvatar').style.backgroundColor = userAvatarColor;
+    </script>
+</body>
+</html>
