@@ -231,7 +231,7 @@
             margin-right: 5px;
         }
 
-        /* ��力エリア */
+        /* 入力エリア */
         .input-area {
             border-top: 1px solid #ddd;
             padding: 15px 20px;
@@ -551,7 +551,6 @@
     <input type="file" id="backgroundAvatarInput" accept="image/*">
 
     <script>
-        // ⚠️ Supabaseの設定を貼り付けてください
         const SUPABASE_URL = 'https://bttpvmqzyocukemozajz.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0dHB2bXF6eW9jdWtlbW96YWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNjIyNjEsImV4cCI6MjA5MDkzODI2MX0.pZ7jnsPqc7VfDrU1IYDH01uhdr43oTxkSDbc-F0tOaI';
 
@@ -582,22 +581,33 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Prefer': 'return=minimal'
                 },
                 body: JSON.stringify(messageData)
             });
-            return response.json();
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error('送信失敗: ' + err);
+            }
         }
 
         // Supabaseからメッセージを取得
         async function fetchMessages() {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/messages?order=timestamp.asc`, {
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
-                }
-            });
-            return response.json();
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/messages?order=timestamp.asc`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                if (!response.ok) return [];
+                const data = await response.json();
+                return Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('fetchMessages error:', e);
+                return [];
+            }
         }
 
         // ログイン処理
@@ -628,10 +638,9 @@
         async function loadMessages() {
             const messagesArea = document.getElementById('messagesArea');
             const messages = await fetchMessages();
-            
-            if (messagesArea.children.length === 1 && messagesArea.children[0].classList.contains('loading')) {
-                messagesArea.innerHTML = '';
-            }
+
+            const loadingEl = messagesArea.querySelector('.loading');
+            if (loadingEl) loadingEl.remove();
 
             messages.forEach(msg => {
                 if (!document.querySelector(`[data-msg-id="${msg.id}"]`)) {
@@ -783,7 +792,7 @@
             });
         }
 
-        // メッセージ送信機能
+        // メッセージ送信機能 ★修正箇所★
         document.querySelector('.send-btn').addEventListener('click', async function() {
             const input = document.querySelector('.message-input');
             const message = input.value.trim();
@@ -792,28 +801,33 @@
             if (message || selectedMediaFiles.length > 0) {
                 sendBtn.disabled = true;
 
-                const messageData = {
-                    username: currentUsername,
-                    text: message,
-                    avatar_color: userAvatarColor,
-                    avatar_image: userAvatarImage,
-                    media: selectedMediaFiles.map(m => ({
-                        data: m.data,
-                        type: m.type
-                    })),
-                    timestamp: new Date().getTime()
-                };
+                try {
+                    const messageData = {
+                        username: currentUsername,
+                        text: message,
+                        avatar_color: userAvatarColor,
+                        avatar_image: userAvatarImage,
+                        media: selectedMediaFiles.map(m => ({
+                            data: m.data,
+                            type: m.type
+                        })),
+                        timestamp: new Date().getTime()
+                    };
 
-                await sendMessageToSupabase(messageData);
+                    await sendMessageToSupabase(messageData);
 
-                input.value = '';
-                selectedMediaFiles = [];
-                updateMediaPreview();
-                document.getElementById('mediaFileInput').value = '';
-                sendBtn.disabled = false;
-                
-                // すぐに表示を更新
-                loadMessages();
+                    input.value = '';
+                    selectedMediaFiles = [];
+                    updateMediaPreview();
+                    document.getElementById('mediaFileInput').value = '';
+                    loadMessages();
+                } catch (e) {
+                    console.error('送信エラー:', e);
+                    alert('送信に失敗しました。再度お試しください。');
+                } finally {
+                    // 成功・失敗どちらでも必ずボタンを再有効化
+                    sendBtn.disabled = false;
+                }
             }
         });
 
