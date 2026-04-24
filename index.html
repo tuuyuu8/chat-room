@@ -500,6 +500,10 @@
             <div class="chat-title">
                 <h1>チャットルーム: default-room</h1>
             </div>
+            <div id="onlineStatus" style="display:flex; align-items:center; gap:6px; font-size:13px; color:#333; flex-shrink:0;">
+                <span id="onlineDot">🔴</span>
+                <span id="onlineText">オフライン</span>
+            </div>
             <div class="header-controls">
                 <input type="text" id="usernameDisplay" placeholder="ゲスト" value="">
                 <button id="changeNameBtn">名前を変更</button>
@@ -564,6 +568,49 @@
     <script>
         const SUPABASE_URL = 'https://bttpvmqzyocukemozajz.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0dHB2bXF6eW9jdWtlbW96YWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNjIyNjEsImV4cCI6MjA5MDkzODI2MX0.pZ7jnsPqc7VfDrU1IYDH01uhdr43oTxkSDbc-F0tOaI';
+
+        // オンラインユーザー管理
+        async function updateOnlineStatus() {
+            if (!currentUsername) return;
+            const now = Date.now();
+            // upsertで自分のlast_seenを更新
+            await fetch(`${SUPABASE_URL}/rest/v1/online_users`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify({ username: currentUsername, last_seen: now })
+            });
+            // 10秒以上音沙汰なしのユーザーを削除
+            await fetch(`${SUPABASE_URL}/rest/v1/online_users?last_seen=lt.${now - 10000}`, {
+                method: 'DELETE',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+            // オンライン人数を取得して表示
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/online_users?select=username`, {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+            const users = await res.json();
+            const count = Array.isArray(users) ? users.length : 0;
+            const dot = document.getElementById('onlineDot');
+            const text = document.getElementById('onlineText');
+            if (count === 0) {
+                dot.textContent = '🔴';
+                text.textContent = 'オフライン';
+            } else {
+                dot.textContent = '🟢';
+                text.textContent = `${count}人がオンライン`;
+            }
+        }
 
         let currentUsername = localStorage.getItem('chat_username') || '';
         let userAvatarColor = localStorage.getItem('chat_avatarColor') || '#999';
@@ -647,8 +694,11 @@
                 document.querySelector('.message-input').placeholder = username + 'としてメッセージ入力';
                 document.getElementById('loginScreen').classList.add('hidden');
                 loadMessages();
+                updateOnlineStatus();
                 // 3秒ごとに新しいメッセージをチェック
                 setInterval(loadMessages, 3000);
+                // 5秒ごとにオンライン状態を更新
+                setInterval(updateOnlineStatus, 5000);
             } else {
                 alert('名前を入力してください');
             }
@@ -937,8 +987,19 @@
             document.querySelector('.message-input').placeholder = currentUsername + 'としてメッセージ入力';
             document.getElementById('loginScreen').classList.add('hidden');
             loadMessages();
+            updateOnlineStatus();
             setInterval(loadMessages, 3000);
+            setInterval(updateOnlineStatus, 5000);
         }
+        // ページを閉じる時に自分を削除
+        window.addEventListener('beforeunload', function() {
+            if (currentUsername) {
+                navigator.sendBeacon(
+                    `${SUPABASE_URL}/rest/v1/online_users?username=eq.${encodeURIComponent(currentUsername)}`,
+                    null
+                );
+            }
+        });
     </script>
 </body>
 </html>
