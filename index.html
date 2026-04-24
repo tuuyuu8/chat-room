@@ -703,7 +703,8 @@
                 mediaHTML += '</div>';
             }
 
-            const time = new Date(messageData.timestamp).toLocaleTimeString('ja-JP');
+            const d = new Date(messageData.timestamp);
+            const time = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
             messageGroup.innerHTML = `
                 <div class="message-item">
