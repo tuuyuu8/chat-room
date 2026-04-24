@@ -565,9 +565,9 @@
         const SUPABASE_URL = 'https://bttpvmqzyocukemozajz.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0dHB2bXF6eW9jdWtlbW96YWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNjIyNjEsImV4cCI6MjA5MDkzODI2MX0.pZ7jnsPqc7VfDrU1IYDH01uhdr43oTxkSDbc-F0tOaI';
 
-        let currentUsername = '';
-        let userAvatarColor = '#999';
-        let userAvatarImage = null;
+        let currentUsername = localStorage.getItem('chat_username') || '';
+        let userAvatarColor = localStorage.getItem('chat_avatarColor') || '#999';
+        let userAvatarImage = localStorage.getItem('chat_avatarImage') || null;
         let selectedMediaFiles = [];
         const colors = ['#999', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
 
@@ -642,6 +642,7 @@
             
             if (username) {
                 currentUsername = username;
+                localStorage.setItem('chat_username', username);
                 document.getElementById('usernameDisplay').value = username;
                 document.querySelector('.message-input').placeholder = username + 'としてメッセージ入力';
                 document.getElementById('loginScreen').classList.add('hidden');
@@ -725,6 +726,7 @@
             const newName = prompt('新しい名前を入力してください:', currentUsername);
             if (newName && newName.trim()) {
                 currentUsername = newName.trim();
+                localStorage.setItem('chat_username', currentUsername);
                 document.getElementById('usernameDisplay').value = currentUsername;
                 document.querySelector('.message-input').placeholder = currentUsername + 'としてメッセージ入力';
             }
@@ -744,6 +746,8 @@
         function setAvatarColor(color) {
             userAvatarColor = color;
             userAvatarImage = null;
+            localStorage.setItem('chat_avatarColor', color);
+            localStorage.removeItem('chat_avatarImage');
             document.getElementById('userAvatar').style.backgroundColor = color;
             document.getElementById('userAvatar').style.backgroundImage = 'none';
             closeColorPicker();
@@ -756,6 +760,8 @@
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     userAvatarImage = event.target.result;
+                    localStorage.setItem('chat_avatarImage', userAvatarImage);
+                    localStorage.removeItem('chat_avatarColor');
                     document.getElementById('userAvatar').style.backgroundImage = `url('${userAvatarImage}')`;
                     document.getElementById('userAvatar').style.backgroundColor = 'transparent';
                     closeColorPicker();
@@ -915,8 +921,23 @@
             document.getElementById('resetModal').style.display = 'none';
         });
 
-        // ユーザーアバター初期化
-        document.getElementById('userAvatar').style.backgroundColor = userAvatarColor;
+        // ユーザーアバター初期化（localStorageから復元）
+        if (userAvatarImage) {
+            document.getElementById('userAvatar').style.backgroundImage = `url('${userAvatarImage}')`;
+            document.getElementById('userAvatar').style.backgroundColor = 'transparent';
+        } else {
+            document.getElementById('userAvatar').style.backgroundColor = userAvatarColor;
+        }
+
+        // 保存済みの名前があればログイン画面をスキップ
+        if (currentUsername) {
+            document.getElementById('usernameInput').value = currentUsername;
+            document.getElementById('usernameDisplay').value = currentUsername;
+            document.querySelector('.message-input').placeholder = currentUsername + 'としてメッセージ入力';
+            document.getElementById('loginScreen').classList.add('hidden');
+            loadMessages();
+            setInterval(loadMessages, 3000);
+        }
     </script>
 </body>
 </html>
