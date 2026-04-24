@@ -498,11 +498,14 @@
         <!-- ヘッダー -->
         <div class="chat-header">
             <div class="chat-title">
-                <h1>チャットルーム</h1>
+                <h1>チャットルーム: default-room</h1>
             </div>
-            <div id="onlineStatus" style="display:flex; align-items:center; gap:6px; font-size:13px; color:#333; flex-shrink:0;">
-                <span id="onlineDot">🔴</span>
-                <span id="onlineText">オフライン</span>
+            <div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0;">
+                <div id="onlineStatus" style="display:flex; align-items:center; gap:6px; font-size:13px; color:#333;">
+                    <span id="onlineDot">🔴</span>
+                    <span id="onlineText">オフライン</span>
+                </div>
+                <div id="onlineUserList" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
             </div>
             <div class="header-controls">
                 <input type="text" id="usernameDisplay" placeholder="ゲスト" value="">
@@ -619,6 +622,27 @@
                     dot.textContent = '🟢';
                     text.textContent = `${count}人がオンライン`;
                 }
+                // ユーザーリストを表示
+                const listEl = document.getElementById('onlineUserList');
+                listEl.innerHTML = '';
+                users.forEach(u => {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:12px; color:#333;';
+                    // アイコン（イニシャル）
+                    const icon = document.createElement('div');
+                    const initial = u.username.charAt(0);
+                    // 名前からハッシュで色を決定
+                    let hash = 0;
+                    for (let i = 0; i < u.username.length; i++) hash = u.username.charCodeAt(i) + ((hash << 5) - hash);
+                    const hue = Math.abs(hash) % 360;
+                    icon.style.cssText = `width:20px; height:20px; border-radius:50%; background:hsl(${hue},60%,60%); display:flex; align-items:center; justify-content:center; font-size:10px; color:white; font-weight:bold; flex-shrink:0;`;
+                    icon.textContent = initial;
+                    const name = document.createElement('span');
+                    name.textContent = u.username;
+                    item.appendChild(icon);
+                    item.appendChild(name);
+                    listEl.appendChild(item);
+                });
             } catch(e) {
                 console.error('オンライン状態更新エラー:', e);
             }
