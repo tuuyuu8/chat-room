@@ -480,6 +480,53 @@
             padding: 20px;
             color: #999;
         }
+
+        /* 通話パネル */
+        .call-panel {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 320px;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .video-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .video-row video {
+            width: 150px;
+            height: 100px;
+            background: black;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .call-controls {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .toggle-btn {
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+        }
+
+        .user-item { display:flex; align-items:center; gap:6px; }
+
     </style>
 </head>
 <body>
@@ -511,6 +558,8 @@
                 <input type="text" id="usernameDisplay" placeholder="ゲスト" value="">
                 <button id="changeNameBtn">名前を変更</button>
                 <button id="backgroundBtn">アカウント背景を変更</button>
+                <button id="toggleMicBtn" class="toggle-btn" title="マイク切替">🎤OFF</button>
+                <button id="toggleCamBtn" class="toggle-btn" title="カメラ切替">📷OFF</button>
                 <div class="user-avatar" id="userAvatar"></div>
             </div>
         </div>
@@ -530,6 +579,20 @@
                 <button class="file-btn" id="mediaSelectBtn">動画または画像を選択</button>
             </div>
             <button class="send-btn">送信</button>
+        </div>
+    </div>
+
+    <!-- 通話パネル（ローカル/リモートビデオ） -->
+    <div class="call-panel" id="callPanel" style="display:none;">
+        <div style="font-weight:600; font-size:14px; text-align:center;">通話中 <span id="callWith"></span></div>
+        <div class="video-row">
+            <video id="localVideo" autoplay muted playsinline></video>
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+        <div class="call-controls">
+            <button id="muteBtn" class="toggle-btn">ミュート</button>
+            <button id="stopCamBtn" class="toggle-btn">カメラ停止</button>
+            <button id="hangupBtn" class="toggle-btn">切断</button>
         </div>
     </div>
 
@@ -623,10 +686,10 @@
                         'Authorization': `Bearer ${SUPABASE_KEY}`,
                         'Prefer': 'return=minimal'
                     },
-                    body: JSON.stringify({ username: currentUsername })
+                    body: JSON.stringify({ username: currentUsername, mic_on: micEnabled, cam_on: camEnabled })
                 });
                 // オンライン人数を取得して表示
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/online_users?select=username`, {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/online_users?select=username,mic_on,cam_on`, {
                     headers: {
                         'apikey': SUPABASE_KEY,
                         'Authorization': `Bearer ${SUPABASE_KEY}`
@@ -648,6 +711,7 @@
                 listEl.innerHTML = '';
                 users.forEach(u => {
                     const item = document.createElement('div');
+                    item.className = 'user-item';
                     item.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:12px; color:#333;';
                     // アイコン（イニシャル）
                     const icon = document.createElement('div');
@@ -662,6 +726,29 @@
                     name.textContent = u.username;
                     item.appendChild(icon);
                     item.appendChild(name);
+
+                    // マイク/カメラ状態アイコン
+                    const statusWrap = document.createElement('div');
+                    statusWrap.style.cssText = 'display:flex; gap:4px; margin-left:6px;';
+                    const micIcon = document.createElement('span');
+                    micIcon.textContent = u.mic_on ? '🎤' : '🔈';
+                    micIcon.title = u.mic_on ? 'マイクON' : 'マイクOFF';
+                    const camIcon = document.createElement('span');
+                    camIcon.textContent = u.cam_on ? '📷' : '📵';
+                    camIcon.title = u.cam_on ? 'カメラON' : 'カメラOFF';
+                    statusWrap.appendChild(micIcon);
+                    statusWrap.appendChild(camIcon);
+                    item.appendChild(statusWrap);
+
+                    // 自分以外には通話ボタンを表示
+                    if (u.username !== currentUsername) {
+                        const callBtn = document.createElement('button');
+                        callBtn.textContent = '通話';
+                        callBtn.className = 'toggle-btn';
+                        callBtn.onclick = () => initiateCall(u.username);
+                        item.appendChild(callBtn);
+                    }
+
                     listEl.appendChild(item);
                 });
             } catch(e) {
@@ -674,6 +761,14 @@
         let userAvatarImage = localStorage.getItem('chat_avatarImage') || null;
         let selectedMediaFiles = [];
         const colors = ['#999', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+
+        // 通話関連状態
+        let micEnabled = false;
+        let camEnabled = false;
+        let localStream = null;
+        let pc = null;
+        let currentCallTarget = null;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         // 初期化：カラーオプションを生成
         function initColorOptions() {
@@ -721,6 +816,234 @@
                 throw new Error('送信失敗: ' + err);
             }
         }
+
+        // シグナリング：メッセージを送る
+        async function sendSignal(signal) {
+            // signal: { from_username, to_username, type, sdp?, candidate? }
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/webrtc_signaling`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(signal)
+                });
+            } catch (e) {
+                console.error('sendSignal error', e);
+            }
+        }
+
+        // シグナリングをポーリングして受信したら処理・削除する
+        async function pollSignals() {
+            if (!currentUsername) return;
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/webrtc_signaling?to_username=eq.${encodeURIComponent(currentUsername)}&order=created_at.asc`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (!res.ok) return;
+                const msgs = await res.json();
+                for (const m of msgs) {
+                    try {
+                        await handleSignal(m);
+                    } catch (e) {
+                        console.error('handleSignal error', e);
+                    } finally {
+                        // 削除
+                        try {
+                            await fetch(`${SUPABASE_URL}/rest/v1/webrtc_signaling?id=eq.${m.id}`, {
+                                method: 'DELETE',
+                                headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                            });
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+            } catch (e) {
+                console.error('pollSignals error', e);
+            }
+        }
+
+        // シグナルを処理
+        async function handleSignal(msg) {
+            if (msg.type === 'offer') {
+                // 受信側：着信通知
+                const from = msg.from_username;
+                const accept = confirm(`${from} から通話の着信があります。通話を受けますか？`);
+                if (!accept) return;
+
+                await startLocalStream();
+                pc = new RTCPeerConnection(rtcConfig);
+                setupPeerConnection(pc);
+
+                // attach local tracks
+                if (localStream) {
+                    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+                }
+
+                await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                // send answer
+                await sendSignal({ from_username: currentUsername, to_username: from, type: 'answer', sdp: pc.localDescription.sdp });
+                currentCallTarget = from;
+                showCallPanel(from);
+            } else if (msg.type === 'answer') {
+                const sdp = msg.sdp;
+                if (!pc) return;
+                await pc.setRemoteDescription({ type: 'answer', sdp });
+            } else if (msg.type === 'candidate') {
+                if (!pc) return;
+                try {
+                    await pc.addIceCandidate(msg.candidate);
+                } catch (e) {
+                    console.warn('addIceCandidate failed', e);
+                }
+            } else if (msg.type === 'hangup') {
+                // 相手が切断
+                alert(`${msg.from_username} が通話を終了しました`);
+                hangUp();
+            }
+        }
+
+        function setupPeerConnection(pc) {
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendSignal({ from_username: currentUsername, to_username: currentCallTarget, type: 'candidate', candidate: event.candidate });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const remoteVideo = document.getElementById('remoteVideo');
+                if (remoteVideo.srcObject !== event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+            };
+
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                    hangUp();
+                }
+            };
+        }
+
+        async function startLocalStream() {
+            try {
+                const constraints = { audio: micEnabled, video: camEnabled };
+                if (localStream) {
+                    // update tracks
+                    const tracks = localStream.getTracks();
+                    tracks.forEach(t => t.stop());
+                    localStream = null;
+                }
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const localVideo = document.getElementById('localVideo');
+                localVideo.srcObject = localStream;
+            } catch (e) {
+                console.error('getUserMedia error', e);
+                alert('カメラ／マイクの取得に失敗しました: ' + e.message);
+            }
+        }
+
+        async function stopLocalStream() {
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+                document.getElementById('localVideo').srcObject = null;
+            }
+        }
+
+        // 通話開始（発信）
+        async function initiateCall(targetUsername) {
+            if (!currentUsername) { alert('ログインしてください'); return; }
+            if (pc) { alert('既に通話中です'); return; }
+            currentCallTarget = targetUsername;
+            await startLocalStream();
+
+            pc = new RTCPeerConnection(rtcConfig);
+            setupPeerConnection(pc);
+
+            if (localStream) {
+                localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            }
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // send offer via signaling
+            await sendSignal({ from_username: currentUsername, to_username: targetUsername, type: 'offer', sdp: pc.localDescription.sdp });
+
+            showCallPanel(targetUsername);
+        }
+
+        // 切断
+        async function hangUp() {
+            try {
+                if (pc) {
+                    try {
+                        await sendSignal({ from_username: currentUsername, to_username: currentCallTarget, type: 'hangup' });
+                    } catch (e) {}
+                    pc.close();
+                    pc = null;
+                }
+                stopLocalStream();
+                currentCallTarget = null;
+                hideCallPanel();
+            } catch (e) { console.error('hangUp error', e); }
+        }
+
+        function showCallPanel(target) {
+            document.getElementById('callWith').textContent = target;
+            document.getElementById('callPanel').style.display = 'flex';
+            // update mic/cam buttons
+            document.getElementById('muteBtn').textContent = micEnabled ? 'ミュート解除' : 'ミュート';
+            document.getElementById('stopCamBtn').textContent = camEnabled ? 'カメラ停止' : 'カメラ開始';
+        }
+        function hideCallPanel() {
+            document.getElementById('callPanel').style.display = 'none';
+            document.getElementById('remoteVideo').srcObject = null;
+        }
+
+        // マイク／カメラトグル
+        document.getElementById('toggleMicBtn').addEventListener('click', async () => {
+            micEnabled = !micEnabled;
+            document.getElementById('toggleMicBtn').textContent = micEnabled ? '🎤ON' : '🎤OFF';
+            // update online status immediately
+            updateOnlineStatus();
+            if (localStream) {
+                localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+            }
+        });
+        document.getElementById('toggleCamBtn').addEventListener('click', async () => {
+            camEnabled = !camEnabled;
+            document.getElementById('toggleCamBtn').textContent = camEnabled ? '📷ON' : '📷OFF';
+            updateOnlineStatus();
+            if (localStream) {
+                localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
+            }
+        });
+
+        // 通話パネルの操作
+        document.getElementById('muteBtn').addEventListener('click', () => {
+            micEnabled = !micEnabled;
+            if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+            document.getElementById('muteBtn').textContent = micEnabled ? 'ミュート解除' : 'ミュート';
+            document.getElementById('toggleMicBtn').textContent = micEnabled ? '🎤ON' : '🎤OFF';
+            updateOnlineStatus();
+        });
+        document.getElementById('stopCamBtn').addEventListener('click', () => {
+            camEnabled = !camEnabled;
+            if (localStream) localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
+            document.getElementById('stopCamBtn').textContent = camEnabled ? 'カメラ停止' : 'カメラ開始';
+            document.getElementById('toggleCamBtn').textContent = camEnabled ? '📷ON' : '📷OFF';
+            updateOnlineStatus();
+        });
+        document.getElementById('hangupBtn').addEventListener('click', hangUp);
+
+        // 定期的にシグナルをポーリング
+        setInterval(pollSignals, 1000);
 
         // Supabaseからメッセージを取得
         async function fetchMessages() {
