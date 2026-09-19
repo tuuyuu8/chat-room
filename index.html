@@ -1,35 +1,981 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>チャットルーム</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#eee}body{display:flex}button,select{cursor:pointer;border:1px solid #ccc;background:#fff;border-radius:6px;padding:8px 10px}button:hover,select:hover{background:#f5f5f5}.login-screen{position:fixed;inset:0;background:#0008;display:grid;place-items:center;z-index:1000}.login-screen.hidden{display:none}.login-dialog{background:#fff;border-radius:10px;padding:30px;text-align:center}.login-dialog input{width:260px;padding:10px;margin:15px 0;border:1px solid #ccc;border-radius:5px}.chat-shell{width:100%;height:100%;display:flex;flex-direction:column;background:#fff}.chat-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:#f7f7f7;border-bottom:1px solid #ddd}.chat-header h1{margin:0;font-size:22px}.online-box{display:flex;flex-direction:column;gap:4px;min-width:180px;font-size:13px}.online-row{display:flex;align-items:center;gap:6px}.user-list{display:flex;flex-wrap:wrap;gap:6px;font-size:12px}.user-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 6px;border-radius:999px;background:#f0f0f0;border:1px solid #ddd}.user-pill button{font-size:11px;padding:3px 6px}.header-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.header-controls input{width:110px;padding:7px 10px;border:1px solid #ccc;border-radius:5px}.permission-status{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:2000;display:none;background:#222;color:#fff;padding:10px 16px;border-radius:8px;box-shadow:0 3px 12px #0004;font-size:14px}.permission-status.show{display:block}.messages{flex:1;overflow-y:auto;padding:20px}.message-row{display:flex;gap:12px;margin-bottom:14px}.message-avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0;background:#999}.message-body{flex:1}.message-user{font-weight:700}.message-text{line-height:1.5;color:#333;white-space:pre-wrap;word-break:break-word}.message-time{font-size:12px;color:#888}.composer{display:flex;gap:10px;padding:14px 18px;border-top:1px solid #ddd;background:#fafafa}.composer textarea{flex:1;height:42px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:10px;font:inherit}.call-panel{position:fixed;right:18px;bottom:18px;width:400px;display:none;z-index:30;background:#fff;border:1px solid #ccc;border-radius:10px;box-shadow:0 8px 30px #0003;padding:10px}.call-panel.show{display:block}.call-title{text-align:center;font-weight:700;margin-bottom:8px}.video-grid{display:flex;gap:8px}.video-grid video{width:calc(50% - 4px);height:140px;background:#111;object-fit:cover;border-radius:6px;cursor:pointer}.camera-choice{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:12px}.camera-choice select{flex:1;min-width:0;padding:6px}.call-actions{display:flex;justify-content:center;gap:8px;margin-top:10px}.fullscreen-video{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:9999!important;object-fit:contain!important;border-radius:0!important;background:#000!important}@media(max-width:700px){.chat-header{flex-wrap:wrap}.call-panel{left:12px;right:12px;width:auto}.video-grid video{height:110px}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>チャットルーム</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+      background: #eee;
+    }
+    body { display: flex; }
+    button, select {
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    button:hover, select:hover { background: #f5f5f5; }
+
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: grid;
+      place-items: center;
+      z-index: 1000;
+    }
+    .login-screen.hidden { display: none; }
+
+    .login-dialog {
+      background: #fff;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+    }
+    .login-dialog input {
+      width: 260px;
+      padding: 10px;
+      margin: 15px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .chat-shell {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #f7f7f7;
+      border-bottom: 1px solid #ddd;
+    }
+    .chat-header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .online-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 180px;
+      font-size: 13px;
+    }
+    .online-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .user-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 12px;
+    }
+    .user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+    }
+    .user-pill button {
+      font-size: 11px;
+      padding: 3px 6px;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .header-controls input {
+      width: 110px;
+      padding: 7px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .permission-status {
+      position: fixed;
+      left: 50%;
+      top: 14px;
+      transform: translateX(-50%);
+      z-index: 2000;
+      display: none;
+      background: #222;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+      font-size: 14px;
+    }
+    .permission-status.show {
+      display: block;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .message-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .message-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #999;
+    }
+    .message-body {
+      flex: 1;
+    }
+    .message-user {
+      font-weight: 700;
+    }
+    .message-text {
+      line-height: 1.5;
+      color: #333;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message-time {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .composer {
+      display: flex;
+      gap: 10px;
+      padding: 14px 18px;
+      border-top: 1px solid #ddd;
+      background: #fafafa;
+    }
+    .composer textarea {
+      flex: 1;
+      height: 42px;
+      resize: vertical;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      font: inherit;
+    }
+
+    .call-panel {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 400px;
+      display: none;
+      z-index: 30;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+      padding: 10px;
+    }
+    .call-panel.show { display: block; }
+
+    .call-title {
+      text-align: center;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .video-grid {
+      display: flex;
+      gap: 8px;
+    }
+    .video-grid video {
+      width: calc(50% - 4px);
+      height: 140px;
+      background: #111;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .camera-choice {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .camera-choice select {
+      flex: 1;
+      min-width: 0;
+      padding: 6px;
+    }
+
+    .call-actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .fullscreen-video {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      object-fit: contain !important;
+      border-radius: 0 !important;
+      background: #000 !important;
+    }
+
+    @media (max-width: 700px) {
+      .chat-header { flex-wrap: wrap; }
+      .call-panel {
+        left: 12px;
+        right: 12px;
+        width: auto;
+      }
+      .video-grid video { height: 110px; }
+    }
+  </style>
 </head>
 <body>
-<div class="login-screen" id="loginScreen"><div class="login-dialog"><h2>ログインしてください</h2><input id="usernameInput" placeholder="名前を入力"><br><button id="loginBtn">ログイン</button></div></div>
-<div id="permissionStatus" class="permission-status"></div>
-<div class="chat-shell"><div class="chat-header"><h1>チャットルーム</h1><div class="online-box"><div class="online-row"><span id="onlineDot">🔴</span><span id="onlineText">オフライン</span></div><div id="userList" class="user-list"></div></div><div class="header-controls"><input id="usernameDisplay" readonly><button id="renameBtn">名前変更</button><button id="micBtn">🎤OFF</button><button id="camBtn">📷OFF</button></div></div><div id="messages" class="messages"></div><div class="composer"><textarea id="messageInput" placeholder="メッセージ入力"></textarea><button id="sendBtn">送信</button></div></div>
-<div id="callPanel" class="call-panel"><div class="call-title">通話中: <span id="callName"></span></div><div class="video-grid"><video id="localVideo" autoplay muted playsinline></video><video id="remoteVideo" autoplay playsinline></video></div><div class="camera-choice"><label for="cameraSelect">カメラ:</label><select id="cameraSelect"><option value="">カメラを読み込み中...</option></select></div><div class="call-actions"><button id="muteBtn">ミュート</button><button id="cameraBtn">カメラ停止</button><button id="hangupBtn">切断</button></div></div>
-<script>
-const SUPABASE_URL='https://bttpvmqzyocukemozajz.supabase.co',SUPABASE_KEY='sb_publishable_sk8Jur900Z7CIhNWJb9UuQ_uW8nm7vI',AUTH_HEADERS={apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`},rtcConfig={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
-let currentUser=localStorage.getItem('chat_username')||'',peerConnection=null,localStream=null,activeCallUser=null,micEnabled=false,camEnabled=false,selectedCameraId='',queuedCandidates=[],backgroundJobsStarted=false;const $=id=>document.getElementById(id);function api(path,options={}){return fetch(SUPABASE_URL+path,{...options,headers:{...(options.headers||{}),...AUTH_HEADERS}})}function jsonHeaders(){return {'Content-Type':'application/json',...AUTH_HEADERS}}
-function showPermission(message){const el=$('permissionStatus');el.textContent=message;el.classList.add('show')}function hidePermission(){setTimeout(()=>$('permissionStatus').classList.remove('show'),700)}
-async function requestMedia(kind){const message=kind==='camera'?'カメラの許可を求めています。ブラウザで「許可」を押してください。':'マイクの許可を求めています。ブラウザで「許可」を押してください。';showPermission(message);try{const constraints=kind==='camera'?{video:selectedCameraId?{deviceId:{exact:selectedCameraId}}:true}:{audio:true};const s=await navigator.mediaDevices.getUserMedia(constraints);hidePermission();return s}catch(e){hidePermission();alert(`${kind==='camera'?'カメラ':'マイク'}の許可が必要です。ブラウザのアドレスバー左側の鍵マークから許可してください。\n${e.message}`);return null}}
-async function startBackgroundJobs(){if(backgroundJobsStarted)return;backgroundJobsStarted=true;setInterval(updateOnlineStatus,10000);setInterval(loadMessages,10000);setInterval(pollSignals,2000)}
-async function loadCameras(){if(!navigator.mediaDevices?.enumerateDevices)return;try{const devices=await navigator.mediaDevices.enumerateDevices(),cams=devices.filter(d=>d.kind==='videoinput'),select=$('cameraSelect');select.innerHTML='';if(!cams.length){select.add(new Option('カメラなし',''));return}cams.forEach((d,i)=>select.add(new Option(d.label||`カメラ ${i+1}`,d.deviceId)));if(!selectedCameraId||!cams.some(d=>d.deviceId===selectedCameraId)){selectedCameraId=cams[0].deviceId}select.value=selectedCameraId}catch(e){console.error(e)}}
-async function updateOnlineStatus(){if(!currentUser)return;try{await api(`/rest/v1/online_users?username=eq.${encodeURIComponent(currentUser)}`,{method:'DELETE'});await api('/rest/v1/online_users',{method:'POST',headers:jsonHeaders(),body:JSON.stringify({username:currentUser})});const r=await api('/rest/v1/online_users?select=username'),users=await r.json(),count=Array.isArray(users)?users.length:0;$('onlineText').textContent=count?`${count}人がオンライン`:'オフライン';$('onlineDot').textContent=count?'🟢':'🔴';$('userList').innerHTML='';(users||[]).forEach(u=>{const p=document.createElement('div');p.className='user-pill';p.textContent=u.username;if(u.username!==currentUser){const b=document.createElement('button');b.textContent='通話';b.onclick=()=>startCall(u.username);p.append(b)}$('userList').append(p)})}catch(e){console.error(e)}}
-function showMessage(m){const row=document.createElement('div');row.className='message-row';const a=document.createElement('div');a.className='message-avatar';a.style.background=m.avatar_color||'#999';const b=document.createElement('div');b.className='message-body';b.innerHTML='<div class="message-user"></div><div class="message-text"></div><div class="message-time"></div>';b.querySelector('.message-user').textContent=m.username;b.querySelector('.message-text').textContent=m.text||'';b.querySelector('.message-time').textContent=new Date(m.timestamp).toLocaleString();row.append(a,b);$('messages').append(row)}
-async function loadMessages(){try{const r=await api('/rest/v1/messages?order=timestamp.asc');if(!r.ok)return;$('messages').innerHTML='';(await r.json()).forEach(showMessage)}catch(e){console.error(e)}}
-async function sendMessage(){const text=$('messageInput').value.trim();if(!text)return;const r=await api('/rest/v1/messages',{method:'POST',headers:jsonHeaders(),body:JSON.stringify({username:currentUser,text,avatar_color:'#999',avatar_image:null,media:[],timestamp:Date.now()})});if(r.ok){$('messageInput').value='';loadMessages()}else alert('送信に失敗しました')}
-async function signal(payload){const r=await api('/rest/v1/webrtc_signaling',{method:'POST',headers:jsonHeaders(),body:JSON.stringify(payload)});if(!r.ok)console.error(await r.text())}function ensurePeer(){if(peerConnection)return peerConnection;peerConnection=new RTCPeerConnection(rtcConfig);peerConnection.onicecandidate=e=>{if(e.candidate&&activeCallUser)signal({from_username:currentUser,to_username:activeCallUser,type:'candidate',candidate:e.candidate.toJSON()})};peerConnection.ontrack=e=>{if(e.streams[0]){$('remoteVideo').srcObject=e.streams[0];$('remoteVideo').play().catch(()=>{})}};peerConnection.onconnectionstatechange=()=>{if(['failed','closed','disconnected'].includes(peerConnection.connectionState))endCall(false)};return peerConnection}
-async function getLocalMedia(){if(localStream)localStream.getTracks().forEach(t=>t.stop());const audio=await requestMedia('microphone');if(!audio)return null;let video=null;if(camEnabled){video=await requestMedia('camera');if(!video)return null}localStream=new MediaStream([...audio.getAudioTracks(),...(video?video.getVideoTracks():[])]);$('localVideo').srcObject=localStream;return localStream}
-async function startCall(target){if(peerConnection)return alert('すでに通話中です');activeCallUser=target;micEnabled=true;camEnabled=true;$('micBtn').textContent='🎤ON';$('camBtn').textContent='📷ON';$('cameraBtn').textContent='カメラ停止';$('callName').textContent=target;await loadCameras();const s=await getLocalMedia();if(!s){endCall(false);return}const pc=ensurePeer();s.getTracks().forEach(t=>pc.addTrack(t,s));const offer=await pc.createOffer();await pc.setLocalDescription(offer);await signal({from_username:currentUser,to_username:target,type:'offer',sdp:pc.localDescription.sdp});$('callPanel').classList.add('show')}
-async function incomingOffer(m){if(peerConnection)return;if(!confirm(`${m.from_username} から通話が来ています。受けますか？`))return;activeCallUser=m.from_username;micEnabled=true;camEnabled=true;$('micBtn').textContent='🎤ON';$('camBtn').textContent='📷ON';$('cameraBtn').textContent='カメラ停止';$('callName').textContent=activeCallUser;await loadCameras();const s=await getLocalMedia();if(!s){endCall(false);return}const pc=ensurePeer();s.getTracks().forEach(t=>pc.addTrack(t,s));await pc.setRemoteDescription({type:'offer',sdp:m.sdp});for(const c of queuedCandidates)await pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});queuedCandidates=[];const a=await pc.createAnswer();await pc.setLocalDescription(a);await signal({from_username:currentUser,to_username:activeCallUser,type:'answer',sdp:a.sdp});$('callPanel').classList.add('show')}
-async function pollSignals(){if(!currentUser)return;try{const r=await api(`/rest/v1/webrtc_signaling?to_username=eq.${encodeURIComponent(currentUser)}&order=created_at.asc`);if(!r.ok)return;const messages=await r.json();for(const m of messages){try{if(m.type==='offer')await incomingOffer(m);else if(m.type==='answer'&&peerConnection)await peerConnection.setRemoteDescription({type:'answer',sdp:m.sdp});else if(m.type==='candidate'){if(peerConnection?.remoteDescription)await peerConnection.addIceCandidate(new RTCIceCandidate(m.candidate));else queuedCandidates.push(m.candidate)}else if(m.type==='hangup')endCall(false)}catch(e){console.error(e)}finally{await api(`/rest/v1/webrtc_signaling?id=eq.${m.id}`,{method:'DELETE'})}}}catch(e){console.error(e)}}
-function endCall(send=true){if(send&&activeCallUser)signal({from_username:currentUser,to_username:activeCallUser,type:'hangup'});if(peerConnection){peerConnection.close();peerConnection=null}if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}$('localVideo').srcObject=null;$('remoteVideo').srcObject=null;$('callPanel').classList.remove('show');activeCallUser=null;queuedCandidates=[]}
-async function toggleMic(){if(!micEnabled){showPermission('マイクの許可を求めています。ブラウザで「許可」を押してください。');const s=await requestMedia('microphone');if(!s)return;if(!localStream)localStream=new MediaStream();const t=s.getAudioTracks()[0];localStream.addTrack(t);if(peerConnection){const sender=peerConnection.getSenders().find(x=>x.track?.kind==='audio');if(sender)await sender.replaceTrack(t);else peerConnection.addTrack(t,localStream)}$('localVideo').srcObject=localStream}micEnabled=!micEnabled;$('micBtn').textContent=micEnabled?'🎤ON':'🎤OFF';$('muteBtn').textContent=micEnabled?'ミュート':'ミュート解除';if(localStream)localStream.getAudioTracks().forEach(t=>t.enabled=micEnabled)}
-async function toggleCam(){if(!camEnabled){showPermission('カメラの許可を求めています。ブラウザで「許可」を押してください。');const s=await requestMedia('camera');if(!s)return;const t=s.getVideoTracks()[0];if(!localStream)localStream=new MediaStream();localStream.addTrack(t);if(peerConnection){const sender=peerConnection.getSenders().find(x=>x.track?.kind==='video');if(sender)await sender.replaceTrack(t);else peerConnection.addTrack(t,localStream)}$('localVideo').srcObject=localStream;camEnabled=true}else{camEnabled=false;if(localStream)localStream.getVideoTracks().forEach(t=>t.enabled=false)}$('camBtn').textContent=camEnabled?'📷ON':'📷OFF';$('cameraBtn').textContent=camEnabled?'カメラ停止':'カメラ開始'}
-function fullscreen(v){if(v.classList.contains('fullscreen-video')){v.classList.remove('fullscreen-video');document.exitFullscreen?.()}else{v.classList.add('fullscreen-video');v.requestFullscreen?.().catch(()=>{})}}
-function login(){const n=$('usernameInput').value.trim();if(!n)return alert('名前を入力してください');currentUser=n;localStorage.setItem('chat_username',n);$('usernameDisplay').value=n;$('loginScreen').classList.add('hidden');loadMessages();updateOnlineStatus();loadCameras();startBackgroundJobs()} $('loginBtn').onclick=login;$('usernameInput').onkeydown=e=>{if(e.key==='Enter')login()};$('sendBtn').onclick=sendMessage;$('messageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};$('renameBtn').onclick=()=>{const n=prompt('新しい名前',currentUser)?.trim();if(n){currentUser=n;localStorage.setItem('chat_username',n);$('usernameDisplay').value=n;updateOnlineStatus()}};$('micBtn').onclick=toggleMic;$('camBtn').onclick=toggleCam;$('muteBtn').onclick=toggleMic;$('cameraBtn').onclick=toggleCam;$('hangupBtn').onclick=()=>endCall(true);$('cameraSelect').onchange=async e=>{selectedCameraId=e.target.value;if(camEnabled){const s=await requestMedia('camera');if(s){const t=s.getVideoTracks()[0],sender=peerConnection?.getSenders().find(x=>x.track?.kind==='video');if(sender)await sender.replaceTrack(t);if(localStream){localStream.getVideoTracks().forEach(x=>x.stop());localStream.addTrack(t)}else localStream=s;$('localVideo').srcObject=localStream}}};$('localVideo').onclick=()=>fullscreen($('localVideo'));$('remoteVideo').onclick=()=>fullscreen($('remoteVideo'));if(currentUser){$('usernameDisplay').value=currentUser;$('loginScreen').classList.add('hidden');loadMessages();updateOnlineStatus();loadCameras();startBackgroundJobs()}
-</script></body></html>
+  <div class="login-screen" id="loginScreen">
+    <div class="login-dialog">
+      <h2>ログインしてください</h2>
+      <input id="usernameInput" placeholder="名前を入力"><br>
+      <button id="loginBtn">ログイン</button>
+    </div>
+  </div>
+
+  <div id="permissionStatus" class="permission-status"></div>
+
+  <div class="chat-shell">
+    <div class="chat-header">
+      <h1>チャットルーム</h1>
+
+      <div class="online-box">
+        <div class="online-row">
+          <span id="onlineDot">🔴</span>
+          <span id="onlineText">オフライン</span>
+        </div>
+        <div id="userList" class="user-list"></div>
+      </div>
+
+      <div class="header-controls">
+        <input id="usernameDisplay" readonly>
+        <button id="renameBtn">名前変更</button>
+        <button id="micBtn">🎤OFF</button>
+        <button id="camBtn">📷OFF</button>
+      </div>
+    </div>
+
+    <div id="messages" class="messages"></div>
+
+    <div class="composer">
+      <textarea id="messageInput" placeholder="メッセージ入力"></textarea>
+      <button id="sendBtn">送信</button>
+    </div>
+  </div>
+
+  <div id="callPanel" class="call-panel">
+    <div class="call-title">通話中: <span id="callName"></span></div>
+    <div class="video-grid">
+      <video id="localVideo" autoplay muted playsinline></video>
+      <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+
+    <div class="camera-choice">
+      <label for="cameraSelect">カメラ:</label>
+      <select id="cameraSelect">
+        <option value="">カメラを読み込み中...</option>
+      </select>
+    </div>
+
+    <div class="call-actions">
+      <button id="muteBtn">ミュート</button>
+      <button id="cameraBtn">カメラ停止</button>
+      <button id="hangupBtn">切断</button>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://bttpvmqzyocukemozajz.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_sk8Jur900Z7CIhNWJb9UuQ_uW8nm7vI';
+    const AUTH_HEADERS = {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
+    };
+    const rtcConfig = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
+
+    let currentUser = localStorage.getItem('chat_username') || '';
+    let peerConnection = null;
+    let localStream = null;
+    let activeCallUser = null;
+    let micEnabled = false;
+    let camEnabled = false;
+    let selectedCameraId = '';
+    let queuedCandidates = [];
+    let backgroundJobsStarted = false;
+    let pollInFlight = false;
+    let incomingPromptActive = false;
+
+    const $ = id => document.getElementById(id);
+
+    function api(path, options = {}) {
+      return fetch(SUPABASE_URL + path, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          ...AUTH_HEADERS
+        }
+      });
+    }
+
+    function jsonHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        ...AUTH_HEADERS
+      };
+    }
+
+    function showPermission(message) {
+      const el = $('permissionStatus');
+      el.textContent = message;
+      el.classList.add('show');
+    }
+
+    function hidePermission() {
+      setTimeout(() => {
+        $('permissionStatus').classList.remove('show');
+      }, 700);
+    }
+
+    async function requestMedia(kind) {
+      const message =
+        kind === 'camera'
+          ? 'カメラの許可を求めています。ブラウザで「許可」を押してください。'
+          : 'マイクの許可を求めています。ブラウザで「許可」を押してください。';
+
+      showPermission(message);
+
+      try {
+        const constraints =
+          kind === 'camera'
+            ? (selectedCameraId ? { video: { deviceId: { exact: selectedCameraId } } } : { video: true })
+            : { audio: true };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        hidePermission();
+        return stream;
+      } catch (e) {
+        hidePermission();
+        alert(
+          `${kind === 'camera' ? 'カメラ' : 'マイク'}の許可が必要です。ブラウザのアドレスバー左側の鍵マークから許可してください。\n${e.message}`
+        );
+        return null;
+      }
+    }
+
+    function startBackgroundJobs() {
+      if (backgroundJobsStarted) return;
+      backgroundJobsStarted = true;
+
+      setInterval(updateOnlineStatus, 10000);
+      setInterval(loadMessages, 10000);
+      setInterval(pollSignals, 2000);
+    }
+
+    async function loadCameras() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+        const select = $('cameraSelect');
+
+        select.innerHTML = '';
+
+        if (!cameras.length) {
+          select.add(new Option('カメラなし', ''));
+          return;
+        }
+
+        cameras.forEach((device, index) => {
+          select.add(new Option(device.label || `カメラ ${index + 1}`, device.deviceId));
+        });
+
+        if (!selectedCameraId || !cameras.some(d => d.deviceId === selectedCameraId)) {
+          selectedCameraId = cameras[0].deviceId;
+        }
+
+        select.value = selectedCameraId;
+      } catch (e) {
+        console.error('カメラ一覧取得エラー:', e);
+      }
+    }
+
+    async function updateOnlineStatus() {
+      if (!currentUser) return;
+
+      try {
+        await api(`/rest/v1/online_users?username=eq.${encodeURIComponent(currentUser)}`, {
+          method: 'DELETE'
+        });
+
+        await api('/rest/v1/online_users', {
+          method: 'POST',
+          headers: jsonHeaders(),
+          body: JSON.stringify({ username: currentUser })
+        });
+
+        const response = await api('/rest/v1/online_users?select=username');
+        const users = await response.json();
+        const count = Array.isArray(users) ? users.length : 0;
+
+        $('onlineText').textContent = count ? `${count}人がオンライン` : 'オフライン';
+        $('onlineDot').textContent = count ? '🟢' : '🔴';
+
+        const list = $('userList');
+        list.innerHTML = '';
+
+        (users || []).forEach(user => {
+          const pill = document.createElement('div');
+          pill.className = 'user-pill';
+          pill.textContent = user.username;
+
+          if (user.username !== currentUser) {
+            const callBtn = document.createElement('button');
+            callBtn.textContent = '通話';
+            callBtn.onclick = () => startCall(user.username);
+            pill.append(callBtn);
+          }
+
+          list.append(pill);
+        });
+      } catch (e) {
+        console.error('オンライン状態更新エラー:', e);
+      }
+    }
+
+    function showMessage(message) {
+      const row = document.createElement('div');
+      row.className = 'message-row';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'message-avatar';
+      avatar.style.background = message.avatar_color || '#999';
+
+      const body = document.createElement('div');
+      body.className = 'message-body';
+
+      const userEl = document.createElement('div');
+      userEl.className = 'message-user';
+      userEl.textContent = message.username;
+
+      const textEl = document.createElement('div');
+      textEl.className = 'message-text';
+      textEl.textContent = message.text || '';
+
+      const timeEl = document.createElement('div');
+      timeEl.className = 'message-time';
+      timeEl.textContent = new Date(message.timestamp).toLocaleString();
+
+      body.append(userEl, textEl, timeEl);
+      row.append(avatar, body);
+      $('messages').append(row);
+    }
+
+    async function loadMessages() {
+      try {
+        const response = await api('/rest/v1/messages?order=timestamp.asc');
+        if (!response.ok) return;
+
+        const messages = await response.json();
+        $('messages').innerHTML = '';
+
+        messages.forEach(showMessage);
+        $('messages').scrollTop = $('messages').scrollHeight;
+      } catch (e) {
+        console.error('メッセージ読み込みエラー:', e);
+      }
+    }
+
+    async function sendMessage() {
+      const text = $('messageInput').value.trim();
+      if (!text) return;
+
+      const response = await api('/rest/v1/messages', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({
+          username: currentUser,
+          text,
+          avatar_color: '#999',
+          avatar_image: null,
+          media: [],
+          timestamp: Date.now()
+        })
+      });
+
+      if (response.ok) {
+        $('messageInput').value = '';
+        loadMessages();
+      } else {
+        alert('送信に失敗しました');
+      }
+    }
+
+    async function signal(payload) {
+      try {
+        const response = await api('/rest/v1/webrtc_signaling', {
+          method: 'POST',
+          headers: jsonHeaders(),
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          console.error('signal error', await response.text());
+        }
+      } catch (e) {
+        console.error('signal send error:', e);
+      }
+    }
+
+    function ensurePeer() {
+      if (peerConnection) return peerConnection;
+
+      peerConnection = new RTCPeerConnection(rtcConfig);
+
+      peerConnection.onicecandidate = e => {
+        if (e.candidate && activeCallUser) {
+          signal({
+            from_username: currentUser,
+            to_username: activeCallUser,
+            type: 'candidate',
+            candidate: e.candidate.toJSON()
+          });
+        }
+      };
+
+      peerConnection.ontrack = e => {
+        const stream = e.streams[0];
+        if (stream) {
+          $('remoteVideo').srcObject = stream;
+          $('remoteVideo').play().catch(() => {});
+        }
+      };
+
+      peerConnection.onconnectionstatechange = () => {
+        if (['failed', 'closed', 'disconnected'].includes(peerConnection.connectionState)) {
+          endCall(false);
+        }
+      };
+
+      return peerConnection;
+    }
+
+    async function getLocalMedia() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+
+      const audioStream = await requestMedia('microphone');
+      if (!audioStream) return null;
+
+      let videoStream = null;
+      if (camEnabled) {
+        videoStream = await requestMedia('camera');
+        if (!videoStream) return null;
+      }
+
+      localStream = new MediaStream([
+        ...audioStream.getAudioTracks(),
+        ...(videoStream ? videoStream.getVideoTracks() : [])
+      ]);
+
+      $('localVideo').srcObject = localStream;
+      return localStream;
+    }
+
+    async function startCall(target) {
+      if (peerConnection) {
+        alert('すでに通話中です');
+        return;
+      }
+
+      activeCallUser = target;
+      micEnabled = true;
+      camEnabled = true;
+
+      $('micBtn').textContent = '🎤ON';
+      $('camBtn').textContent = '📷ON';
+      $('cameraBtn').textContent = 'カメラ停止';
+      $('callName').textContent = target;
+
+      await loadCameras();
+
+      const stream = await getLocalMedia();
+      if (!stream) {
+        endCall(false);
+        return;
+      }
+
+      const pc = ensurePeer();
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      await signal({
+        from_username: currentUser,
+        to_username: target,
+        type: 'offer',
+        sdp: pc.localDescription.sdp
+      });
+
+      $('callPanel').classList.add('show');
+    }
+
+    async function incomingOffer(message) {
+      if (peerConnection || incomingPromptActive) return;
+
+      incomingPromptActive = true;
+
+      try {
+        const accepted = confirm(`${message.from_username} から通話が来ています。受けますか？`);
+
+        if (!accepted) return;
+
+        activeCallUser = message.from_username;
+        micEnabled = true;
+        camEnabled = true;
+
+        $('micBtn').textContent = '🎤ON';
+        $('camBtn').textContent = '📷ON';
+        $('cameraBtn').textContent = 'カメラ停止';
+        $('callName').textContent = activeCallUser;
+
+        await loadCameras();
+
+        const stream = await getLocalMedia();
+        if (!stream) {
+          endCall(false);
+          return;
+        }
+
+        const pc = ensurePeer();
+
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+        await pc.setRemoteDescription({
+          type: 'offer',
+          sdp: message.sdp
+        });
+
+        for (const candidate of queuedCandidates) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.warn('ICE candidate add failed:', e);
+          }
+        }
+        queuedCandidates = [];
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        await signal({
+          from_username: currentUser,
+          to_username: activeCallUser,
+          type: 'answer',
+          sdp: pc.localDescription.sdp
+        });
+
+        $('callPanel').classList.add('show');
+      } catch (e) {
+        console.error('着信処理エラー:', e);
+        endCall(false);
+      } finally {
+        incomingPromptActive = false;
+      }
+    }
+
+    async function pollSignals() {
+      if (!currentUser) return;
+      if (pollInFlight) return;
+      if (incomingPromptActive) return;
+
+      pollInFlight = true;
+
+      try {
+        const response = await api(`/rest/v1/webrtc_signaling?to_username=eq.${encodeURIComponent(currentUser)}&order=created_at.asc`);
+
+        if (!response.ok) return;
+
+        const messages = await response.json();
+
+        for (const message of messages) {
+          try {
+            if (message.type === 'offer') {
+              await incomingOffer(message);
+            } else if (message.type === 'answer' && peerConnection) {
+              await peerConnection.setRemoteDescription({
+                type: 'answer',
+                sdp: message.sdp
+              });
+            } else if (message.type === 'candidate') {
+              if (peerConnection && peerConnection.remoteDescription) {
+                try {
+                  await peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
+                } catch (e) {
+                  console.warn('candidate add error:', e);
+                }
+              } else {
+                queuedCandidates.push(message.candidate);
+              }
+            } else if (message.type === 'hangup') {
+              endCall(false);
+            }
+          } catch (e) {
+            console.error('シグナル処理エラー:', e);
+          } finally {
+            try {
+              await api(`/rest/v1/webrtc_signaling?id=eq.${message.id}`, {
+                method: 'DELETE'
+              });
+            } catch (e) {
+              console.error('シグナル削除エラー:', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('シグナル取得エラー:', e);
+      } finally {
+        pollInFlight = false;
+      }
+    }
+
+    function endCall(send = true) {
+      if (send && activeCallUser) {
+        signal({
+          from_username: currentUser,
+          to_username: activeCallUser,
+          type: 'hangup'
+        });
+      }
+
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+
+      $('localVideo').srcObject = null;
+      $('remoteVideo').srcObject = null;
+      $('callPanel').classList.remove('show');
+
+      activeCallUser = null;
+      queuedCandidates = [];
+    }
+
+    async function toggleMic() {
+      if (!micEnabled) {
+        showPermission('マイクの許可を求めています。ブラウザで「許可」を押してください。');
+        const stream = await requestMedia('microphone');
+        if (!stream) return;
+
+        if (!localStream) {
+          localStream = new MediaStream();
+        }
+
+        const track = stream.getAudioTracks()[0];
+        localStream.addTrack(track);
+
+        if (peerConnection) {
+          const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+          if (sender) {
+            await sender.replaceTrack(track);
+          } else {
+            peerConnection.addTrack(track, localStream);
+          }
+        }
+
+        $('localVideo').srcObject = localStream;
+      }
+
+      micEnabled = !micEnabled;
+      $('micBtn').textContent = micEnabled ? '🎤ON' : '🎤OFF';
+      $('muteBtn').textContent = micEnabled ? 'ミュート' : 'ミュート解除';
+
+      if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+          track.enabled = micEnabled;
+        });
+      }
+    }
+
+    async function toggleCam() {
+      if (!camEnabled) {
+        showPermission('カメラの許可を求めています。ブラウザで「許可」を押してください。');
+        const stream = await requestMedia('camera');
+        if (!stream) return;
+
+        const track = stream.getVideoTracks()[0];
+
+        if (!localStream) {
+          localStream = new MediaStream();
+        }
+
+        localStream.addTrack(track);
+
+        if (peerConnection) {
+          const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) {
+            await sender.replaceTrack(track);
+          } else {
+            peerConnection.addTrack(track, localStream);
+          }
+        }
+
+        $('localVideo').srcObject = localStream;
+        camEnabled = true;
+      } else {
+        camEnabled = false;
+        if (localStream) {
+          localStream.getVideoTracks().forEach(track => {
+            track.enabled = false;
+          });
+        }
+      }
+
+      $('camBtn').textContent = camEnabled ? '📷ON' : '📷OFF';
+      $('cameraBtn').textContent = camEnabled ? 'カメラ停止' : 'カメラ開始';
+    }
+
+    function fullscreenVideo(videoEl) {
+      if (videoEl.classList.contains('fullscreen-video')) {
+        videoEl.classList.remove('fullscreen-video');
+        if (document.fullscreenElement) {
+          document.exitFullscreen?.();
+        }
+      } else {
+        videoEl.classList.add('fullscreen-video');
+        videoEl.requestFullscreen?.().catch(() => {});
+      }
+    }
+
+    function login() {
+      const name = $('usernameInput').value.trim();
+      if (!name) {
+        alert('名前を入力してください');
+        return;
+      }
+
+      currentUser = name;
+      localStorage.setItem('chat_username', name);
+
+      $('usernameDisplay').value = name;
+      $('loginScreen').classList.add('hidden');
+
+      loadMessages();
+      updateOnlineStatus();
+      loadCameras();
+      startBackgroundJobs();
+    }
+
+    $('loginBtn').onclick = login;
+    $('usernameInput').onkeydown = e => {
+      if (e.key === 'Enter') login();
+    };
+
+    $('sendBtn').onclick = sendMessage;
+    $('messageInput').onkeydown = e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    };
+
+    $('renameBtn').onclick = () => {
+      const nextName = prompt('新しい名前', currentUser)?.trim();
+      if (!nextName) return;
+
+      currentUser = nextName;
+      localStorage.setItem('chat_username', nextName);
+      $('usernameDisplay').value = nextName;
+      updateOnlineStatus();
+    };
+
+    $('micBtn').onclick = toggleMic;
+    $('camBtn').onclick = toggleCam;
+    $('muteBtn').onclick = toggleMic;
+    $('cameraBtn').onclick = toggleCam;
+    $('hangupBtn').onclick = () => endCall(true);
+
+    $('cameraSelect').onchange = async e => {
+      selectedCameraId = e.target.value;
+
+      if (!camEnabled || !peerConnection || !localStream) return;
+
+      const newStream = await requestMedia('camera');
+      if (!newStream) return;
+
+      const newTrack = newStream.getVideoTracks()[0];
+
+      const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) {
+        await sender.replaceTrack(newTrack);
+      } else {
+        peerConnection.addTrack(newTrack, localStream);
+      }
+
+      if (localStream) {
+        localStream.getVideoTracks().forEach(track => track.stop());
+      }
+
+      localStream.addTrack(newTrack);
+      $('localVideo').srcObject = localStream;
+    };
+
+    $('localVideo').onclick = () => fullscreenVideo($('localVideo'));
+    $('remoteVideo').onclick = () => fullscreenVideo($('remoteVideo'));
+
+    if (currentUser) {
+      $('usernameDisplay').value = currentUser;
+      $('loginScreen').classList.add('hidden');
+      loadMessages();
+      updateOnlineStatus();
+      loadCameras();
+      startBackgroundJobs();
+    }
+  </script>
+</body>
+</html>
